@@ -6,6 +6,12 @@ Open Cleaner ships as a single portable executable with **no runtime dependencie
 
 ---
 
+## Screenshot
+
+![Open Cleaner](assets/screenshots/open-cleaner.png)
+
+---
+
 ## Highlights
 
 A native GUI with six modules in the sidebar:
