@@ -6,6 +6,13 @@ Open Cleaner ships as a single portable executable with **no runtime dependencie
 
 ---
 
+## Download
+
+- **[Download the latest `open-cleaner.exe`](https://github.com/shafo3i/open-cleaner/releases/latest/download/open-cleaner.exe)**
+- [View all releases](https://github.com/shafo3i/open-cleaner/releases)
+
+---
+
 ## Screenshot
 
 ![Open Cleaner](assets/screenshots/open-cleaner.png)
