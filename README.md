@@ -1,116 +1,167 @@
-# SYSTEM CLEANER (`open-cleaner`) ◈
+# Open Cleaner (`open-cleaner`)
 
-> High-performance open-source system purifier, browser privacy eraser, and guarded registry integrity analyzer built 100% natively in **Rust** with an integrated, hard-edged minimalist GUI.
+> Open-source Windows system cleaner built natively in **Rust** — cache & privacy purging, guarded registry verification, complete application uninstallation, and risk-tiered bloatware removal — with a frameless, hard-edged egui interface.
+
+Open Cleaner ships as a single portable executable with **no runtime dependencies**. Fonts are embedded at compile time, and all cleaning runs against verified Windows paths with its own secure-deletion and permission-recovery engine. No telemetry, no accounts.
 
 ---
 
-## ⚡ Architecture Overview
+## Highlights
 
-`open-cleaner` constructs its cleaning logic natively without proprietary loops or telemetry. It implements a secure file deletion engine with graceful permission recovery, file-lock handling, and strict disk path verification.
+A native GUI with six modules in the sidebar:
 
+| Module | What it does |
+|---|---|
+| **Cleaner** | Disk, browser, app, developer, GPU and privacy caches — audited with live reclaim metrics |
+| **Registry** | Guarded integrity verification of App Paths, MUI cache, startup entries and more |
+| **Uninstaller** | Complete removal of Win32 + AppX/MSIX apps with deep remnant purging |
+| **Utilities** | Software uninstaller, startup optimizer, and a `winget`-based updater |
+| **Bloatware** | Preinstalled apps, telemetry/advertising policies, and optional features — each labeled **Safe / Careful / Expert** with explicit opt-in and a consent flow |
+| **Audit Logs** | Session events and a running history of every debloat pass |
+
+Other key capabilities:
+
+- **Secure deletion** — POSIX unlink fallback for shared-open files, read-only attribute recovery, lock/access-denied handling, and optional `0x00` zero-fill wipe (`--secure`).
+- **Background workers** — scanning, purging, uninstalling and debloating run off the UI thread with live progress and audit reporting.
+- **Self-updater** — checks GitHub Releases on launch and can download + replace the running binary, then restart.
+- **CLI mode** — opt-in via the `cli` feature for scripting/automation.
+
+---
+
+## Build
+
+Prerequisites: stable Rust (edition 2024) on Windows.
+
+```powershell
+cargo build --release
+# → target\release\open-cleaner.exe
 ```
-open-cleaner/
-├── Cargo.toml
-├── assets/
-│   └── fonts/             # Archivo, GeistMono, and Inter variable font binaries
-└── src/
-    ├── main.rs            # Application entry point & CLI dispatcher
-    ├── core/
-    │   ├── mod.rs         # CleanMode, ItemStatus, and Report aggregates
-    │   ├── cleaner.rs     # Secure deletion algorithm & permission recovery
-    │   └── ui.rs          # Terminal formatting, progress indicators, and report summaries
-    ├── modules/
-    │   ├── mod.rs         # CleanerModule trait
-    │   ├── filesystem.rs  # Module 1: File System Purifier
-    │   ├── browser.rs     # Module 2: Browser Privacy Eraser
-    │   └── registry.rs    # Module 3: Registry Analyzer & Verifier
-    └── ui/
-        ├── mod.rs         # GUI initialization & frameless viewport configuration
-        ├── app.rs         # SystemCleanerApp state machine & async background workers
-        ├── header.rs      # 48px integrated titlebar with window controls and view mode toggles
-        ├── toolbar.rs     # 4-category filter cells, live search, and action triggers
-        ├── banner.rs      # Audit hero metrics strip & best-effort zero-overwrite checkbox
-        ├── table_view.rs  # Technical tabular target view
-        ├── grid_view.rs   # Card-based target view
-        ├── model.rs       # 18-target clean database with category indices
-        ├── theme.rs       # Exact color tokens, typography scales, and 0px corner radii
-        └── widgets.rs     # Modular HUD labels, badges, buttons, and drag handles
-```
 
----
+Run the GUI:
 
-## 🛡️ The Three Priority Modules
-
-### 1. File System Purifier (Safest Core)
-Targets standard verified cache and temporary paths:
-- **User Temporary Files**: `%TEMP%` (`%LOCALAPPDATA%\Temp\*`)
-- **Windows System Temp**: `%WINDIR%\Temp\*`
-- **System Logs & Traces**: `%WINDIR%\Logs\*.log`, `*.etl`, `%LOCALAPPDATA%\Microsoft\Windows\*.log`
-- **Crash Dumps & MiniDumps**: `%LOCALAPPDATA%\CrashDumps\*.dmp`, `%WINDIR%\Minidump\*.dmp`, `%WINDIR%\MEMORY.DMP`
-- **Windows Error Reporting (WER)**: User and machine `ReportArchive`, `ReportQueue`, `Temp`
-- **Thumbnail Cache**: `%LOCALAPPDATA%\Microsoft\Windows\Explorer\thumbcache_*.db`
-- **Delivery Optimization Cache**: `%WINDIR%\SoftwareDistribution\DeliveryOptimization\Cache`
-- **Recycle Bin**: Scans `$Recycle.Bin` across active drives and unlinks safely.
-
-### 2. Browser Privacy Eraser
-Audits and purges cookies, session caches, and navigation history for all major browsers:
-- **Chromium Family (Google Chrome, Microsoft Edge, Brave Browser)**:
-  - Cache: `Cache`, `Code Cache`, `GPUCache`, `DawnGraphiteCache`, `DawnWebGPUCache`, `Media Cache`
-  - Cookies: SQLite databases and network state in `Network\Cookies`, `Cookies`
-  - History: `History`, `Visited Links`, `Top Sites`, `Shortcuts`, `History Provider Cache`
-  - Sessions: `Sessions\*`, `Session Storage\*`, `Current Session`, `Last Tabs`
-- **Mozilla Firefox (Gecko)**:
-  - Cache: `cache2\entries\*`, `startupCache\*`
-  - Cookies: `cookies.sqlite*`
-  - Places History: `places.sqlite*`, `favicons.sqlite*`
-  - Session Store: `sessionstore-backups\*`
-
-### 3. Registry Analyzer & Verifier (Guarded / Advanced)
-Implements **strict disk path verification** before flagging or modifying any registry key:
-- **App Paths**: Inspects `HKCU\Software\Microsoft\Windows\CurrentVersion\App Paths` and verifies whether the registered executable actually exists on disk.
-- **MUI Cache**: Inspects `HKCU\Software\Classes\Local Settings\Software\Microsoft\Windows\Shell\MuiCache` and tests whether the referenced application binary is present on the filesystem.
-- **Run at Startup**: Inspects `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` and checks whether the target program command path exists.
-- **Safety Policy**: Runs in **Read-Only Verification mode** by default (`--scan`). Only modifies confirmed orphaned values when run with explicit clean parameters.
-
----
-
-## 🔒 Secure Deletion & Permission Recovery Algorithm
-
-1. **Junction / Symlink Protection**: Symlinks are never followed recursively to prevent escaping target boundaries.
-2. **Read-Only Attribute Recovery**: On Windows, files with the `readonly` attribute have their permissions modified dynamically before unlinking.
-3. **Graceful Sharing Violation Handling**: Files locked by running processes (`ERROR_SHARING_VIOLATION` / Error 32) are caught, flagged as `SkippedLocked`, and recorded without halting execution.
-4. **Access Denied Recovery**: Permission errors (`ERROR_ACCESS_DENIED` / Error 5) are logged and bypassed cleanly.
-5. **Best-effort Zero-Fill (`--secure`)**: The file is overwritten with `0x00` in 64 KB chunks, flushed with `sync_all()`, truncated to 0 bytes, and then unlinked. This is not a secure-erasure guarantee on SSDs, copy-on-write filesystems, or cloud-synced storage.
-
----
-
-## 🚀 Usage
-
-### Native Graphical Interface (Default)
-Run without arguments or pass `--gui` to launch the native frameless interface:
 ```powershell
 .\target\release\open-cleaner.exe
 ```
 
-### CLI Command Options
+The release build is a **windows-subsystem** binary, so no console window appears. The terminal/CLI mode is available behind the `cli` feature:
+
 ```powershell
-# Safe Preview Scan (Audits all modules without unlinking)
-.\target\release\open-cleaner.exe --scan
+cargo run --features cli -- --help
+```
 
-# Standard Purge of all modules
-.\target\release\open-cleaner.exe --clean
+---
 
-# Best-effort zero-overwrite purge
-.\target\release\open-cleaner.exe --secure
+## Usage
+
+### GUI
+
+Launch `open-cleaner.exe` and switch modules from the left sidebar. Use the header controls to toggle **GRID / TABLE** views, light/dark theme, and refresh. The footer `GITHUB ↗` link opens this repository.
+
+### CLI
+
+```powershell
+# Safe preview scan (audits without deleting)
+open-cleaner.exe --scan
+
+# Standard purge
+open-cleaner.exe --clean
+
+# Best-effort zero-fill purge
+open-cleaner.exe --secure
 
 # Target a specific module
-.\target\release\open-cleaner.exe --module filesystem --clean
-.\target\release\open-cleaner.exe --module browser --clean
-.\target\release\open-cleaner.exe --module registry --scan
+open-cleaner.exe --module filesystem --clean
+open-cleaner.exe --module browser --clean
+open-cleaner.exe --module registry --scan
 
-# Interactive Terminal Menu
-.\target\release\open-cleaner.exe --cli
+# Interactive terminal menu
+open-cleaner.exe --cli
 
-# Verbose Mode (Shows touched file paths and reasons)
-.\target\release\open-cleaner.exe --scan --verbose
+# Verbose output (shows touched paths)
+open-cleaner.exe --scan --verbose
 ```
+
+> The CLI requires building with `--features cli`; the default GUI build hides the console.
+
+---
+
+## Administrator rights
+
+Most cleanup works without elevation. The following **require** running as administrator (the app shows a privilege notice when it is not elevated):
+
+- Windows **restore point** creation before a debloat pass
+- **De-provisioning** preinstalled Appx packages (so they don't return for new users)
+- **Optional feature** removal via DISM (`Remove-Capability`)
+- **Machine-wide** policies (e.g. telemetry level)
+
+---
+
+## Bloatware risk model
+
+Every bloat item is classified and individually opt-in — nothing is auto-selected:
+
+- **Safe** — removable & re-installable; no system function is affected.
+- **Careful** — removes a first-party feature; reversible from the Microsoft Store.
+- **Expert** — touches system servicing/policies; may affect Windows Update and is not guaranteed reversible.
+
+A confirmation dialog summarizes the selected items by tier, warns that removal can break Windows features, and offers a restore point before continuing.
+
+---
+
+## Packaging & releases
+
+`cargo-dist` is configured in `dist-workspace.toml`:
+
+```powershell
+cargo install cargo-dist
+cargo dist init      # generate the GitHub Actions release workflow
+cargo dist build     # build the exe + MSI/NSIS installers locally
+```
+
+Pushing a `v*` tag (e.g. `v0.2.0`) triggers a release build on GitHub Actions and publishes the binary + installers to GitHub Releases.
+
+---
+
+## Updates
+
+On startup, the app polls the latest GitHub Release for this repository and compares it with the running version. If a newer release exists, a toast appears with **DISMISS** / **UPDATE NOW**. `UPDATE NOW` downloads the release archive, replaces the running executable (`self_update`), and restarts the app.
+
+The update source is configured in `src/updater.rs` (`REPO_OWNER` / `REPO_NAME`).
+
+---
+
+## Project layout
+
+```
+open-cleaner/
+├── Cargo.toml
+├── dist-workspace.toml      # cargo-dist release config
+├── assets/
+│   └── fonts/               # Archivo, GeistMono, Inter (embedded)
+└── src/
+    ├── main.rs              # entry point + CLI dispatcher
+    ├── core/                # CleanMode, secure deletion engine, terminal UI
+    ├── modules/             # cleaner modules:
+    │   ├── filesystem.rs    #   file system purifier
+    │   ├── browser.rs       #   browser privacy eraser
+    │   ├── registry.rs      #   registry analyzer & verifier
+    │   ├── apps.rs          #   desktop/UWP app caches
+    │   ├── devtools.rs      #   developer & AI framework caches
+    │   ├── graphics.rs      #   GPU shader & 3D caches
+    │   ├── privacy.rs       #   user activity & shell traces
+    │   └── rules.rs         #   safe-rule catalog
+    ├── uninstaller/         # app discovery, native uninstallers, remnant purging
+    ├── bloat/               # bloatware model, discovery, and executor
+    ├── updater.rs           # GitHub Releases check + self-update
+    └── ui/                  # egui application (app, sidebar, header, views, theme, widgets)
+```
+
+---
+
+## Safety
+
+- **Symlink/junction protection** — traversal never follows links out of the target boundary.
+- **Verified paths** — only whitelisted locations are touched; registry entries are verified against the filesystem before removal.
+- **No data resurrection guarantee** — zero-fill is best-effort and is not a secure-erasure guarantee on SSDs, copy-on-write filesystems, or cloud-synced storage.
+- **Use at your own risk** — debloating can break Windows Update or features; create a restore point first.
+
