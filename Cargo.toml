@@ -1,0 +1,19 @@
+[package]
+name = "open-cleaner"
+version = "0.1.0"
+edition = "2024"
+repository = "https://github.com/shafo3i/open-cleaner"
+
+[features]
+cli = []
+
+[dependencies]
+eframe = { version = "0.31", default-features = false, features = ["default_fonts", "wgpu", "glow"] }
+egui = "0.31"
+egui_extras = { version = "0.31", default-features = false }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+semver = "1"
+self_update = "0.41"
+ureq = "2.12"
+winreg = "0.56.0"

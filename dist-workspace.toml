@@ -1,0 +1,10 @@
+[workspace]
+members = ["cargo:."]
+
+[dist]
+# Build on GitHub Actions and publish releases when a `v*` tag is pushed.
+ci = "github"
+# Windows-only application.
+targets = ["x86_64-pc-windows-msvc"]
+# Windows installers.
+installers = ["msi", "nsis"]

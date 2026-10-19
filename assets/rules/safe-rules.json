@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "rule_windows_widgets_cache",
+      "category": "system",
+      "name": "Windows Widgets Cache",
+      "root_env": "LOCALAPPDATA",
+      "relative_path": "Packages\\MicrosoftWindows.Client.WebExperience_cw5n1h2txyewy\\LocalState\\EBWebView\\Default\\Code Cache",
+      "recursive": true,
+      "default_enabled": false
+    },
+    {
+      "id": "rule_rdp_bitmap_cache",
+      "category": "privacy",
+      "name": "Remote Desktop Bitmap Cache",
+      "root_env": "LOCALAPPDATA",
+      "relative_path": "Microsoft\\Terminal Server Client\\Cache",
+      "recursive": true,
+      "default_enabled": false
+    },
+    {
+      "id": "rule_cryptnet_url_cache",
+      "category": "system",
+      "name": "Windows Cryptnet URL Cache",
+      "root_env": "USERPROFILE",
+      "relative_path": "AppData\\LocalLow\\Microsoft\\CryptnetUrlCache",
+      "recursive": true,
+      "default_enabled": false
+    }
+  ]
+}

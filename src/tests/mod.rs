@@ -1,0 +1,12 @@
+pub mod apps_targets;
+pub mod browser_targets;
+pub mod core_cleaner;
+pub mod devtools_targets;
+pub mod graphics_targets;
+pub mod gui_state;
+pub mod privacy_targets;
+pub mod registry_targets;
+pub mod routing_contract;
+pub mod sandbox;
+pub mod system_targets;
+pub mod uninstaller_targets;
