@@ -142,7 +142,8 @@ impl eframe::App for SystemCleanerApp {
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.add_space(16.0);
-                        widgets::hud(ui, "SYSTEM FOR WINDOWS X64", t.faint);
+                        let sys_info = format!("OPEN-CLEANER v{} · WINDOWS X64", env!("CARGO_PKG_VERSION"));
+                        widgets::hud(ui, &sys_info, t.faint);
                         ui.add_space(16.0);
                         widgets::rule(ui, theme::FOOTER_H, self.dark_mode);
                         ui.add_space(16.0);
