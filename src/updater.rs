@@ -34,16 +34,13 @@ pub fn check_for_update() -> Option<UpdateInfo> {
     if latest > current { Some(info) } else { None }
 }
 
-/// Downloads the latest release, replaces the running binary, and returns `true`
-/// when a new version was installed (the caller should then restart). Returns
-/// `false` if the running build is already current.
-pub fn perform_update() -> Result<bool, String> {
+fn try_update_with_target(target: &str) -> Result<bool, String> {
     let status = self_update::backends::github::Update::configure()
         .repo_owner(REPO_OWNER)
         .repo_name(REPO_NAME)
         .bin_name(BIN_NAME)
         .current_version(env!("CARGO_PKG_VERSION"))
-        .target("x86_64-pc-windows-msvc")
+        .target(target)
         .show_download_progress(false)
         .no_confirm(true)
         .build()
@@ -54,5 +51,24 @@ pub fn perform_update() -> Result<bool, String> {
     match status {
         self_update::Status::Updated(_) => Ok(true),
         self_update::Status::UpToDate(_) => Ok(false),
+    }
+}
+
+/// Downloads the latest release, replaces the running binary, and returns `true`
+/// when a new version was installed (the caller should then restart). Returns
+/// `false` if the running build is already current.
+pub fn perform_update() -> Result<bool, String> {
+    // 1. Try standard target triple (x86_64-pc-windows-msvc for CI matrix archives)
+    match try_update_with_target("x86_64-pc-windows-msvc") {
+        Ok(res) => Ok(res),
+        Err(orig_err) => {
+            // 2. Fallback to direct raw binary asset names (e.g. open-cleaner.exe)
+            let direct_target = if cfg!(windows) {
+                "open-cleaner.exe"
+            } else {
+                "open-cleaner"
+            };
+            try_update_with_target(direct_target).map_err(|_| orig_err)
+        }
     }
 }

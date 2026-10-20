@@ -567,7 +567,12 @@ impl SystemCleanerApp {
                         }
                         std::process::exit(0);
                     } else {
-                        self.pending_update = None;
+                        if message == "already up to date" {
+                            self.pending_update = None;
+                            self.update_error = None;
+                        } else {
+                            self.update_error = Some(message.clone());
+                        }
                         self.metrics.status_text = format!("UPDATE: {message}");
                     }
                 }

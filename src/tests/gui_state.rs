@@ -203,3 +203,4 @@ fn uninstaller_progress_messages_update_bar_and_completion_modal() {
     );
     assert!(app.uninstaller_state.last_report.is_some());
 }
+

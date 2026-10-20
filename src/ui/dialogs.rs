@@ -655,19 +655,13 @@ impl SystemCleanerApp {
                         ui.set_width(360.0);
                         ui.spacing_mut().item_spacing.y = 6.0;
 
-                        widgets::eyebrow(ui, "UPDATE", "NEW VERSION AVAILABLE", dark);
-                        ui.label(
-                            egui::RichText::new(format!(
-                                "Version {} is ready to install.",
-                                update.version()
-                            ))
-                            .font(egui::FontId::new(13.0, theme::display()))
-                            .color(t.ink_strong),
-                        );
-
-                        if self.updating {
-                            widgets::hud(ui, "DOWNLOADING & INSTALLING UPDATE...", t.warn);
-                        } else {
+                        if let Some(err) = &self.update_error {
+                            widgets::eyebrow(ui, "UPDATE ERROR", "UPDATE FAILED", dark);
+                            ui.label(
+                                egui::RichText::new(err)
+                                    .font(egui::FontId::new(11.0, theme::mono()))
+                                    .color(t.bad),
+                            );
                             ui.horizontal(|ui| {
                                 if widgets::button(
                                     ui,
@@ -682,22 +676,65 @@ impl SystemCleanerApp {
                                 }
                                 if widgets::button(
                                     ui,
-                                    "UPDATE NOW",
+                                    "RELEASES PAGE ↗",
                                     widgets::ButtonKind::Primary,
                                     0.0,
                                     dark,
                                 )
                                 .clicked()
                                 {
-                                    update_now = true;
+                                    let _ = std::process::Command::new("explorer")
+                                        .arg("https://github.com/shafo3i/open-cleaner/releases")
+                                        .spawn();
+                                    dismiss = true;
                                 }
                             });
+                        } else {
+                            widgets::eyebrow(ui, "UPDATE", "NEW VERSION AVAILABLE", dark);
+                            ui.label(
+                                egui::RichText::new(format!(
+                                    "Version {} is ready to install.",
+                                    update.version()
+                                ))
+                                .font(egui::FontId::new(13.0, theme::display()))
+                                .color(t.ink_strong),
+                            );
+
+                            if self.updating {
+                                widgets::hud(ui, "DOWNLOADING & INSTALLING UPDATE...", t.warn);
+                            } else {
+                                ui.horizontal(|ui| {
+                                    if widgets::button(
+                                        ui,
+                                        "DISMISS",
+                                        widgets::ButtonKind::Secondary,
+                                        0.0,
+                                        dark,
+                                    )
+                                    .clicked()
+                                    {
+                                        dismiss = true;
+                                    }
+                                    if widgets::button(
+                                        ui,
+                                        "UPDATE NOW",
+                                        widgets::ButtonKind::Primary,
+                                        0.0,
+                                        dark,
+                                    )
+                                    .clicked()
+                                    {
+                                        update_now = true;
+                                    }
+                                });
+                            }
                         }
                     });
             });
 
         if dismiss {
             self.pending_update = None;
+            self.update_error = None;
         }
         if update_now && !self.updating {
             self.updating = true;
