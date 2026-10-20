@@ -17,3 +17,11 @@ semver = "1"
 self_update = "0.41"
 ureq = "2.12"
 winreg = "0.56.0"
+
+[target.'cfg(windows)'.build-dependencies]
+winresource = "0.1"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
