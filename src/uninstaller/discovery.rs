@@ -208,7 +208,7 @@ fn scan_uninstall_hive(
         let full_subkey = format!("{subkey_path}\\{sub_name}");
         let id = format!("{:?}::{}", source, sub_name);
 
-        out.push(InstalledApp {
+        let mut app = InstalledApp {
             id,
             registry_subkey: full_subkey,
             display_name,
@@ -230,7 +230,10 @@ fn scan_uninstall_hive(
             estimated_size_bytes,
             source,
             installer_kind,
-        });
+            icon_image: None,
+        };
+        app.icon_image = super::icons::extract_for_app(&app);
+        out.push(app);
     }
 }
 
@@ -297,7 +300,7 @@ fn scan_appx_repository(
             pkg_full_name
         );
 
-        out.push(InstalledApp {
+        let mut app = InstalledApp {
             id: format!("AppX::{pkg_full_name}"),
             registry_subkey: format!("{subkey_path}\\{pkg_full_name}"),
             display_name,
@@ -311,7 +314,10 @@ fn scan_appx_repository(
             estimated_size_bytes,
             source: AppSource::WindowsStoreAppX,
             installer_kind: InstallerKind::AppX,
-        });
+            icon_image: None,
+        };
+        app.icon_image = super::icons::extract_for_app(&app);
+        out.push(app);
     }
 }
 

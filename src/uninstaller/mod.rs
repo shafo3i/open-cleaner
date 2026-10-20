@@ -1,5 +1,6 @@
 pub mod discovery;
 pub mod executor;
+pub mod icons;
 pub mod model;
 pub mod remnants;
 
@@ -8,6 +9,7 @@ pub use executor::{
     detect_installer_kind, execute_native_uninstaller, is_success_exit_code,
     normalize_uninstall_command, split_command_line,
 };
+pub use icons::{app_monogram, extract_app_icon, extract_for_app, resolve_icon_path};
 pub use model::{
     AppRemnant, AppSource, InstalledApp, InstallerKind, RemnantKind, UninstallOptions,
     UninstallPhase, UninstallProgress, UninstallReport,

@@ -1,6 +1,8 @@
 pub mod app;
 pub mod banner;
 pub mod bloat_view;
+pub mod conductor;
+pub mod dialogs;
 pub mod grid_view;
 pub mod header;
 pub mod logs_view;
@@ -9,8 +11,8 @@ pub mod sidebar;
 pub mod table_view;
 pub mod theme;
 pub mod toolbar;
-pub mod tools_view;
 pub mod uninstaller_view;
+pub mod views;
 pub mod widgets;
 
 pub use app::SystemCleanerApp;

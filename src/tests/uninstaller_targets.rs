@@ -69,6 +69,7 @@ fn uninstaller_command_parsing_and_normalization_works() {
             1,
             AppSource::Win32Machine64,
         ),
+        icon_image: None,
     };
     assert_eq!(msi_app.installer_kind, InstallerKind::Msi);
 
@@ -358,4 +359,41 @@ fn live_system_app_discovery_enumerates_host_applications() {
             "Every discovered application must have a valid UninstallString"
         );
     }
+}
+
+#[test]
+fn app_monogram_generates_correct_two_letter_codes() {
+    use crate::uninstaller::icons::app_monogram;
+
+    assert_eq!(app_monogram("Visual Studio Code"), "VS");
+    assert_eq!(app_monogram("Google Chrome"), "GC");
+    assert_eq!(app_monogram("Obsidian"), "OB");
+    assert_eq!(app_monogram("7-Zip"), "7Z");
+    assert_eq!(app_monogram("   "), "AP");
+    assert_eq!(app_monogram("X"), "XP");
+}
+
+#[test]
+fn live_system_app_icon_extraction_or_fallback() {
+    use crate::uninstaller::icons::{extract_app_icon, resolve_icon_path};
+
+    let apps = scan_installed_apps();
+    assert!(!apps.is_empty());
+
+    // Verify resolve_icon_path and extract_app_icon for candidate host apps
+    let mut extracted_count = 0;
+    for app in apps.iter().take(20) {
+        if let Some((path, idx)) = resolve_icon_path(app) {
+            if let Some(img) = extract_app_icon(&path, idx) {
+                assert!(img.width() > 0 && img.height() > 0);
+                assert_eq!(img.as_raw().len(), img.width() * img.height() * 4);
+                extracted_count += 1;
+            }
+        }
+    }
+    // We expect at least one host application among the first 20 to have an extractable icon
+    assert!(
+        extracted_count > 0,
+        "Expected at least one Windows host app to provide an extractable icon"
+    );
 }

@@ -9,7 +9,6 @@ pub enum AppTab {
     Cleaner,
     Registry,
     Uninstaller,
-    Tools,
     Bloatware,
     AuditLogs,
 }
@@ -18,7 +17,6 @@ pub struct SidebarCounts {
     pub cleaner_count: usize,
     pub registry_count: usize,
     pub uninstaller_count: usize,
-    pub tools_count: usize,
     pub bloat_count: usize,
     pub logs_count: usize,
 }
@@ -78,22 +76,15 @@ pub fn render_sidebar(
                     format!("{} APPS", counts.uninstaller_count),
                 ),
                 (
-                    AppTab::Tools,
-                    "04",
-                    "UTILITIES",
-                    "Uninstaller & Startup",
-                    format!("{} TOOLS", counts.tools_count),
-                ),
-                (
                     AppTab::Bloatware,
-                    "05",
+                    "04",
                     "BLOATWARE",
                     "System Debloat & Policy",
                     format!("{} ITEMS", counts.bloat_count),
                 ),
                 (
                     AppTab::AuditLogs,
-                    "06",
+                    "05",
                     "AUDIT LOGS",
                     "Forensic Activity",
                     format!("{} LOGS", counts.logs_count),
@@ -213,24 +204,35 @@ pub fn render_sidebar(
                                 &badge_str,
                                 if is_active { t.invert_fg } else { t.faint },
                             );
-                            let badge_pad = vec2(10.0, 4.0);
-                            let badge_rect = Rect::from_min_size(
-                                egui::pos2(
-                                    content_rect.right() - badge_g.size().x - badge_pad.x,
-                                    content_rect.top() + 1.0,
-                                ),
-                                badge_g.size() + badge_pad,
-                            );
-                            let badge_fill = if is_active { t.invert_bg } else { t.sunken };
-                            ui.painter()
-                                .rect_filled(badge_rect, CornerRadius::ZERO, badge_fill);
-                            let badge_text_pos =
-                                egui::pos2(badge_rect.left() + 5.0, badge_rect.top() + 2.0);
-                            ui.painter().galley_with_override_text_color(
-                                badge_text_pos,
-                                badge_g,
-                                if is_active { t.invert_fg } else { t.muted },
-                            );
+                            if is_active {
+                                let badge_pad = vec2(10.0, 4.0);
+                                let badge_rect = Rect::from_min_size(
+                                    egui::pos2(
+                                        content_rect.right() - badge_g.size().x - badge_pad.x,
+                                        content_rect.top() + 1.0,
+                                    ),
+                                    badge_g.size() + badge_pad,
+                                );
+                                ui.painter()
+                                    .rect_filled(badge_rect, CornerRadius::ZERO, t.invert_bg);
+                                let badge_text_pos =
+                                    egui::pos2(badge_rect.left() + 5.0, badge_rect.top() + 2.0);
+                                ui.painter().galley_with_override_text_color(
+                                    badge_text_pos,
+                                    badge_g,
+                                    t.invert_fg,
+                                );
+                            } else {
+                                let badge_pos = egui::pos2(
+                                    content_rect.right() - badge_g.size().x - 4.0,
+                                    content_rect.top() + 3.0,
+                                );
+                                ui.painter().galley_with_override_text_color(
+                                    badge_pos,
+                                    badge_g,
+                                    t.faint,
+                                );
+                            }
 
                             // Row 2: Subtitle
                             let sub_g = widgets::hud_galley(

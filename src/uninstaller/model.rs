@@ -70,6 +70,7 @@ pub struct InstalledApp {
     pub estimated_size_bytes: u64,
     pub source: AppSource,
     pub installer_kind: InstallerKind,
+    pub icon_image: Option<std::sync::Arc<egui::ColorImage>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

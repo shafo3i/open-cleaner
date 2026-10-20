@@ -45,23 +45,23 @@ pub fn render_banner(ui: &mut Ui, metrics: &AuditMetrics, secure_wipe: &mut bool
                     widgets::hud(ui, "RECLAIMABLE STORAGE", t.faint);
                     ui.add_space(2.0);
                     let big_text = RichText::new(&metrics.reclaimable_formatted)
-                        .font(egui::FontId::new(26.0, theme::display()))
+                        .font(egui::FontId::new(24.0, theme::display()))
                         .color(t.ink_strong);
                     ui.label(big_text);
                 });
 
-                ui.add_space(32.0);
+                ui.add_space(28.0);
                 widgets::rule(ui, 42.0, dark_mode);
-                ui.add_space(32.0);
+                ui.add_space(28.0);
 
                 // Metric 2: Scanned Target Objects
                 ui.vertical(|ui| {
                     widgets::hud(ui, "SCANNED OBJECTS", t.faint);
-                    ui.add_space(4.0);
-                    let count_str = format!("{}", metrics.scanned_count);
+                    ui.add_space(2.0);
+                    let count_str = format_thousands(metrics.scanned_count);
                     let mid_text = RichText::new(count_str)
-                        .font(egui::FontId::new(17.0, theme::mono_bold()))
-                        .color(t.ink);
+                        .font(egui::FontId::new(24.0, theme::display()))
+                        .color(t.ink_strong);
                     ui.label(mid_text);
                 });
 
@@ -72,10 +72,10 @@ pub fn render_banner(ui: &mut Ui, metrics: &AuditMetrics, secure_wipe: &mut bool
                 // Metric 3: Active Locks / Protected
                 ui.vertical(|ui| {
                     widgets::hud(ui, "LOCKED / SKIPPED", t.faint);
-                    ui.add_space(4.0);
-                    let lock_str = format!("{}", metrics.locked_count);
+                    ui.add_space(2.0);
+                    let lock_str = format_thousands(metrics.locked_count);
                     let mid_text = RichText::new(lock_str)
-                        .font(egui::FontId::new(17.0, theme::mono_bold()))
+                        .font(egui::FontId::new(24.0, theme::display()))
                         .color(t.warn);
                     ui.label(mid_text);
                 });
@@ -87,11 +87,11 @@ pub fn render_banner(ui: &mut Ui, metrics: &AuditMetrics, secure_wipe: &mut bool
                 // Metric 4: Audit Duration
                 ui.vertical(|ui| {
                     widgets::hud(ui, "AUDIT TIME", t.faint);
-                    ui.add_space(4.0);
+                    ui.add_space(2.0);
                     let time_str = format!("{:.2}s", metrics.duration_secs);
                     let mid_text = RichText::new(time_str)
-                        .font(egui::FontId::new(17.0, theme::mono()))
-                        .color(t.muted);
+                        .font(egui::FontId::new(24.0, theme::display()))
+                        .color(t.ink_strong);
                     ui.label(mid_text);
                 });
 
@@ -106,4 +106,17 @@ pub fn render_banner(ui: &mut Ui, metrics: &AuditMetrics, secure_wipe: &mut bool
             });
         });
     });
+}
+
+fn format_thousands(n: usize) -> String {
+    let s = n.to_string();
+    let mut result = String::new();
+    let chars: Vec<char> = s.chars().collect();
+    for (i, &c) in chars.iter().enumerate() {
+        if i > 0 && (chars.len() - i) % 3 == 0 {
+            result.push(',');
+        }
+        result.push(c);
+    }
+    result
 }

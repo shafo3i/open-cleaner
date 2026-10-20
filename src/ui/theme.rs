@@ -61,7 +61,7 @@ impl Tokens {
         invert_bg: hex(0x101014),
         invert_fg: hex(0xf2f1ee),
         good: hex(0x0a7563),
-        warn: hex(0x8a5800),
+        warn: hex(0xd97706),
         bad: hex(0xb3261e),
     };
 

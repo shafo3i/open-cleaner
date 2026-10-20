@@ -49,6 +49,7 @@ pub struct UninstallerUiState {
     pub progress_log: Vec<String>,
     pub show_completion_modal: bool,
     pub last_report: Option<UninstallReport>,
+    pub icon_cache: std::collections::HashMap<String, Option<egui::TextureHandle>>,
 }
 
 impl Default for UninstallerUiState {
@@ -67,6 +68,7 @@ impl Default for UninstallerUiState {
             progress_log: Vec::new(),
             show_completion_modal: false,
             last_report: None,
+            icon_cache: std::collections::HashMap::new(),
         }
     }
 }
@@ -83,6 +85,71 @@ pub fn source_color(source: AppSource) -> Color32 {
         AppSource::Win32Machine32 => Color32::from_rgb(0x5c, 0x6b, 0xc0), // Indigo
         AppSource::Win32User => Color32::from_rgb(0x00, 0x89, 0x7b),      // Teal
         AppSource::WindowsStoreAppX => Color32::from_rgb(0x1e, 0x88, 0xe5), // Blue
+    }
+}
+
+/// Renders either an extracted Windows application icon or a Swiss monogram tile.
+pub fn draw_app_icon_or_monogram(
+    ui: &mut Ui,
+    icon_cache: &mut std::collections::HashMap<String, Option<egui::TextureHandle>>,
+    app: &InstalledApp,
+    size: f32,
+    dark_mode: bool,
+) {
+    let t = Tokens::get(dark_mode);
+    let (rect, _) = ui.allocate_exact_size(vec2(size, size), Sense::hover());
+
+    let maybe_handle = icon_cache.entry(app.id.clone()).or_insert_with(|| {
+        app.icon_image.as_ref().map(|img_arc| {
+            ui.ctx().load_texture(
+                format!("app_icon_{}", app.id),
+                (**img_arc).clone(),
+                egui::TextureOptions::LINEAR,
+            )
+        })
+    });
+
+    if let Some(handle) = maybe_handle {
+        ui.painter().rect_filled(rect, CornerRadius::same(4), t.bg);
+        ui.painter().image(
+            handle.id(),
+            rect,
+            Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+            Color32::WHITE,
+        );
+        ui.painter().rect_stroke(
+            rect,
+            CornerRadius::same(4),
+            t.hairline(),
+            StrokeKind::Inside,
+        );
+    } else {
+        let monogram = crate::uninstaller::icons::app_monogram(&app.display_name);
+        let brand_color = source_color(app.source);
+        let bg_color = if dark_mode {
+            Color32::from_rgb(0x1e, 0x20, 0x28)
+        } else {
+            Color32::from_rgb(0xe5, 0xe4, 0xdf)
+        };
+
+        ui.painter().rect(
+            rect,
+            CornerRadius::same(4),
+            bg_color,
+            egui::Stroke::new(1.0_f32, brand_color),
+            StrokeKind::Inside,
+        );
+
+        let font_size = (size * 0.40).clamp(9.5, 14.0);
+        let g = widgets::caps(
+            ui,
+            &monogram,
+            font_size,
+            egui::FontFamily::Proportional,
+            0.5,
+            brand_color,
+        );
+        widgets::paint_centred(ui, rect, g, brand_color);
     }
 }
 
@@ -292,7 +359,7 @@ pub fn render_uninstaller_view(
     let active_app_id = state
         .active_progress
         .as_ref()
-        .map(|p| p.app_id.as_str())
+        .map(|p| p.app_id.clone())
         .filter(|_| state.is_uninstalling);
     let active_frac = state
         .active_progress
@@ -324,12 +391,22 @@ pub fn render_uninstaller_view(
             ui.add_space(8.0);
 
             let picked = match view_mode {
-                ViewMode::Table => {
-                    render_apps_table(ui, &filtered, active_app_id, active_frac, dark_mode)
-                }
-                ViewMode::Grid => {
-                    render_apps_grid(ui, &filtered, active_app_id, active_frac, dark_mode)
-                }
+                ViewMode::Table => render_apps_table(
+                    ui,
+                    &mut state.icon_cache,
+                    &filtered,
+                    active_app_id.as_deref(),
+                    active_frac,
+                    dark_mode,
+                ),
+                ViewMode::Grid => render_apps_grid(
+                    ui,
+                    &mut state.icon_cache,
+                    &filtered,
+                    active_app_id.as_deref(),
+                    active_frac,
+                    dark_mode,
+                ),
             };
             if let Some(app) = picked {
                 action = UninstallerViewAction::OpenUninstallModal(Box::new(app));
@@ -469,6 +546,7 @@ fn render_uninstaller_metrics_strip(
 
 fn render_apps_table(
     ui: &mut Ui,
+    icon_cache: &mut std::collections::HashMap<String, Option<egui::TextureHandle>>,
     apps: &[InstalledApp],
     active_app_id: Option<&str>,
     active_frac: f32,
@@ -575,29 +653,15 @@ fn render_apps_table(
             let ry = row_rect.center().y;
             let badge_color = source_color(app.source);
 
-            // Number / Source square
-            let num_rect =
-                Rect::from_center_size(egui::pos2(table_rect.left() + 34.0, ry), vec2(34.0, 34.0));
-            ui.painter()
-                .rect_filled(num_rect, CornerRadius::ZERO, badge_color);
-            let num_str = format!("{:02}", (idx + 1).min(99));
-            let num_g = widgets::caps(
-                ui,
-                &num_str,
-                theme::HUD_SIZE,
-                theme::mono_bold(),
-                theme::HUD_SPACING,
-                Color32::WHITE,
-            );
-            ui.painter().galley(
-                num_rect.center() - num_g.size() / 2.0,
-                num_g,
-                Color32::WHITE,
-            );
+            // Icon / Monogram square (26x26)
+            let icon_rect =
+                Rect::from_center_size(egui::pos2(table_rect.left() + 30.0, ry), vec2(26.0, 26.0));
+            let mut icon_ui = ui.new_child(egui::UiBuilder::new().max_rect(icon_rect));
+            draw_app_icon_or_monogram(&mut icon_ui, icon_cache, app, 26.0, dark_mode);
 
-            // Col 1: App Name + Version + Publisher
-            let name_x = table_rect.left() + 62.0;
-            let name_w = (col1_w - 62.0 - 8.0).max(120.0);
+            // Col 1: App Name + Version + Publisher (Inter Proportional)
+            let name_x = table_rect.left() + 58.0;
+            let name_w = (col1_w - 58.0 - 8.0).max(120.0);
             let name_rect = Rect::from_min_size(egui::pos2(name_x, ry - 18.0), vec2(name_w, 38.0));
             let mut name_ui = ui.new_child(
                 egui::UiBuilder::new()
@@ -607,7 +671,7 @@ fn render_apps_table(
             name_ui.add(
                 egui::Label::new(
                     RichText::new(&app.display_name)
-                        .font(egui::FontId::new(14.5, theme::display()))
+                        .font(egui::FontId::new(14.0, egui::FontFamily::Proportional))
                         .color(t.ink_strong),
                 )
                 .truncate(),
@@ -616,7 +680,7 @@ fn render_apps_table(
             name_ui.add(
                 egui::Label::new(
                     RichText::new(sub_meta)
-                        .font(egui::FontId::new(11.0, theme::mono()))
+                        .font(egui::FontId::new(11.0, egui::FontFamily::Proportional))
                         .color(t.muted),
                 )
                 .truncate(),
@@ -641,7 +705,7 @@ fn render_apps_table(
             col2_ui.add(
                 egui::Label::new(
                     RichText::new(app.installer_kind.label())
-                        .font(egui::FontId::new(10.0, theme::mono()))
+                        .font(egui::FontId::new(10.0, egui::FontFamily::Proportional))
                         .color(t.faint),
                 )
                 .truncate(),
@@ -659,7 +723,7 @@ fn render_apps_table(
             );
             date_ui.label(
                 RichText::new(&app.install_date)
-                    .font(egui::FontId::new(11.5, theme::mono()))
+                    .font(egui::FontId::new(11.0, egui::FontFamily::Proportional))
                     .color(t.muted),
             );
 
@@ -720,6 +784,7 @@ fn render_apps_table(
 
 fn render_apps_grid(
     ui: &mut Ui,
+    icon_cache: &mut std::collections::HashMap<String, Option<egui::TextureHandle>>,
     apps: &[InstalledApp],
     active_app_id: Option<&str>,
     active_frac: f32,
@@ -738,7 +803,7 @@ fn render_apps_grid(
 
         let cols = ((full_w / 320.0).floor() as usize).max(1);
         let card_w = (full_w - (cols as f32 - 1.0)) / cols as f32;
-        let card_h = 230.0;
+        let card_h = 240.0;
 
         let rows = apps.len().div_ceil(cols);
         let grid_total_h = rows as f32 * (card_h + 1.0);
@@ -769,83 +834,145 @@ fn render_apps_grid(
             ui.painter()
                 .rect_filled(card_rect, CornerRadius::ZERO, fill);
 
-            let badge_color = source_color(app.source);
-            let body_rect = card_rect.shrink(16.0);
-
             let mut card_ui = ui.new_child(
                 egui::UiBuilder::new()
-                    .max_rect(body_rect)
+                    .max_rect(card_rect)
                     .layout(Layout::top_down(Align::Min)),
             );
 
-            card_ui.horizontal(|ui| {
-                widgets::badge(ui, app.source.badge_label(), badge_color, dark_mode);
-                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    let size_str = if app.estimated_size_bytes > 0 {
-                        format_bytes(app.estimated_size_bytes)
-                    } else {
-                        "—".to_string()
-                    };
-                    ui.label(
-                        RichText::new(size_str)
-                            .font(egui::FontId::new(12.5, theme::mono_bold()))
-                            .color(t.ink_strong),
-                    );
+            // 1. Top Architectural Strip (40px)
+            let strip_rect = Rect::from_min_size(card_rect.min, vec2(card_w, 40.0));
+            card_ui.allocate_new_ui(egui::UiBuilder::new().max_rect(strip_rect), |ui| {
+                ui.horizontal(|ui| {
+                    ui.add_space(14.0);
+                    let badge_color = source_color(app.source);
+                    widgets::badge(ui, app.source.badge_label(), badge_color, dark_mode);
+
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        ui.add_space(14.0);
+                        let size_str = if app.estimated_size_bytes > 0 {
+                            format_bytes(app.estimated_size_bytes)
+                        } else {
+                            "—".to_string()
+                        };
+                        ui.label(
+                            RichText::new(size_str)
+                                .font(egui::FontId::new(12.5, theme::mono_bold()))
+                                .color(t.ink_strong),
+                        );
+                    });
                 });
             });
 
-            card_ui.add_space(10.0);
-            card_ui.add(
-                egui::Label::new(
-                    RichText::new(&app.display_name)
-                        .font(egui::FontId::new(15.5, theme::display()))
-                        .color(t.ink_strong),
-                )
-                .truncate(),
-            );
-            card_ui.add_space(2.0);
-            card_ui.add(
-                egui::Label::new(
-                    RichText::new(&app.publisher)
-                        .font(egui::FontId::new(11.5, egui::FontFamily::Proportional))
-                        .color(t.muted),
-                )
-                .truncate(),
-            );
-            card_ui.add_space(4.0);
-            let ver_line = format!(
-                "v{}  ·  {}  ·  {}",
-                app.display_version,
-                app.installer_kind.label(),
-                app.install_date
-            );
-            card_ui.add(
-                egui::Label::new(
-                    RichText::new(ver_line)
-                        .font(egui::FontId::new(10.0, theme::mono()))
-                        .color(t.faint),
-                )
-                .truncate(),
+            // 1px Hairline divider separating top strip from card body
+            card_ui
+                .painter()
+                .hline(strip_rect.x_range(), strip_rect.bottom(), t.hairline());
+
+            // 2. Card Body (padding 14px)
+            let body_rect = Rect::from_min_max(
+                egui::pos2(card_rect.left() + 14.0, strip_rect.bottom() + 12.0),
+                card_rect.max - vec2(14.0, 12.0),
             );
 
-            card_ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
-                if is_this_uninstalling {
-                    let w = ui.available_width();
-                    draw_progress_bar(ui, w, 8.0, active_frac, t.warn, dark_mode);
-                    ui.add_space(4.0);
-                    let pct = format!("UNINSTALLING {:.0}%...", active_frac * 100.0);
-                    widgets::hud(ui, &pct, t.warn);
-                } else if widgets::button(
-                    ui,
-                    "COMPLETE UNINSTALL",
-                    widgets::ButtonKind::Primary,
-                    ui.available_width(),
-                    dark_mode,
-                )
-                .clicked()
-                {
-                    selected_app = Some(app.clone());
-                }
+            card_ui.allocate_new_ui(egui::UiBuilder::new().max_rect(body_rect), |ui| {
+                ui.vertical(|ui| {
+                    // Header row: 36x36 App Icon + Titles
+                    ui.horizontal(|ui| {
+                        draw_app_icon_or_monogram(ui, icon_cache, app, 36.0, dark_mode);
+                        ui.add_space(10.0);
+
+                        ui.vertical(|ui| {
+                            // Title in Inter Proportional (14.0px SemiBold)
+                            ui.add(
+                                egui::Label::new(
+                                    RichText::new(&app.display_name)
+                                        .font(egui::FontId::new(14.0, egui::FontFamily::Proportional))
+                                        .color(t.ink_strong),
+                                )
+                                .truncate(),
+                            );
+                            ui.add_space(1.0);
+                            // Publisher in Inter (11.5px Regular)
+                            ui.add(
+                                egui::Label::new(
+                                    RichText::new(&app.publisher)
+                                        .font(egui::FontId::new(11.5, egui::FontFamily::Proportional))
+                                        .color(t.muted),
+                                )
+                                .truncate(),
+                            );
+                        });
+                    });
+
+                    ui.add_space(8.0);
+
+                    // Scope / Install Location Box
+                    let loc_str = if let Some(loc) = &app.install_location {
+                        loc.to_string_lossy().to_string()
+                    } else {
+                        app.source.scope_label().to_string()
+                    };
+
+                    egui::Frame::new()
+                        .fill(t.sunken)
+                        .stroke(t.hairline())
+                        .corner_radius(CornerRadius::ZERO)
+                        .inner_margin(egui::Margin::symmetric(8, 4))
+                        .show(ui, |ui| {
+                            ui.set_width(ui.available_width());
+                            ui.add(
+                                egui::Label::new(
+                                    RichText::new(&loc_str)
+                                        .font(egui::FontId::new(10.5, theme::mono()))
+                                        .color(t.muted),
+                                )
+                                .truncate(),
+                            );
+                        });
+
+                    ui.add_space(6.0);
+
+                    // Metadata row: version + installer kind + install date
+                    let ver_line = format!(
+                        "v{}  ·  {}  ·  {}",
+                        app.display_version,
+                        app.installer_kind.label(),
+                        app.install_date
+                    );
+                    ui.add(
+                        egui::Label::new(
+                            RichText::new(ver_line)
+                                .font(egui::FontId::new(10.5, egui::FontFamily::Proportional))
+                                .color(t.faint),
+                        )
+                        .truncate(),
+                    );
+
+                    // Pinned bottom action row
+                    ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
+                        if is_this_uninstalling {
+                            let w = ui.available_width();
+                            draw_progress_bar(ui, w, 8.0, active_frac, t.warn, dark_mode);
+                            ui.add_space(4.0);
+                            let pct = format!("UNINSTALLING {:.0}%...", active_frac * 100.0);
+                            widgets::hud(ui, &pct, t.warn);
+                        } else {
+                            let btn_w = ui.available_width();
+                            if widgets::button(
+                                ui,
+                                "COMPLETE UNINSTALL",
+                                widgets::ButtonKind::Primary,
+                                btn_w,
+                                dark_mode,
+                            )
+                            .clicked()
+                            {
+                                selected_app = Some(app.clone());
+                            }
+                        }
+                    });
+                });
             });
         }
     });

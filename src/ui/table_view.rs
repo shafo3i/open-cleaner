@@ -54,6 +54,18 @@ pub fn render_table(ui: &mut Ui, items: &mut [&mut TargetItem], dark_mode: bool)
         ui.painter()
             .hline(table_rect.x_range(), header_rect.bottom(), t.hairline());
 
+        // Header Select-All Checkbox
+        let all_checked = !items.is_empty() && items.iter().all(|it| it.checked);
+        let mut header_checked = all_checked;
+        let hcb_rect =
+            Rect::from_center_size(egui::pos2(table_rect.left() + 26.0, hy), vec2(20.0, 20.0));
+        let mut hcb_ui = ui.new_child(egui::UiBuilder::new().max_rect(hcb_rect));
+        if hcb_ui.checkbox(&mut header_checked, "").changed() {
+            for it in items.iter_mut() {
+                it.checked = header_checked;
+            }
+        }
+
         // Header Labels
         let col_comp = widgets::caps(
             ui,
@@ -64,7 +76,7 @@ pub fn render_table(ui: &mut Ui, items: &mut [&mut TargetItem], dark_mode: bool)
             t.ink_strong,
         );
         ui.painter().galley(
-            egui::pos2(table_rect.left() + x1, hy - col_comp.size().y / 2.0),
+            egui::pos2(table_rect.left() + 76.0, hy - col_comp.size().y / 2.0),
             col_comp,
             t.ink_strong,
         );
@@ -160,7 +172,7 @@ pub fn render_table(ui: &mut Ui, items: &mut [&mut TargetItem], dark_mode: bool)
             cb_ui.checkbox(&mut item.checked, "");
 
             let num_rect =
-                Rect::from_center_size(egui::pos2(table_rect.left() + 58.0, ry), vec2(34.0, 34.0));
+                Rect::from_center_size(egui::pos2(table_rect.left() + 54.0, ry), vec2(24.0, 24.0));
             ui.painter()
                 .rect_filled(num_rect, CornerRadius::ZERO, item.color);
             let num_galley = widgets::caps(
@@ -177,8 +189,8 @@ pub fn render_table(ui: &mut Ui, items: &mut [&mut TargetItem], dark_mode: bool)
                 Color32::WHITE,
             );
 
-            let name_x = table_rect.left() + 86.0;
-            let name_w = (col1_w - 86.0 - 12.0).max(100.0);
+            let name_x = table_rect.left() + 76.0;
+            let name_w = (col1_w - 76.0 - 12.0).max(100.0);
             let name_rect = Rect::from_min_size(egui::pos2(name_x, ry - 18.0), vec2(name_w, 36.0));
             let mut name_ui = ui.new_child(
                 egui::UiBuilder::new()
