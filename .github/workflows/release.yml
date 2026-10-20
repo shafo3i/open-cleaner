@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 jobs:
   build-windows:
     runs-on: windows-latest
@@ -17,7 +20,7 @@ jobs:
           targets: x86_64-pc-windows-msvc
 
       - name: Build Release
-        run: cargo build --release --manifest-path Cargo.toml
+        run: cargo build --release
 
       - name: Package Windows ZIP
         shell: pwsh
