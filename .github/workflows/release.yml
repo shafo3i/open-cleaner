@@ -22,9 +22,10 @@ jobs:
       - name: Build Release
         run: cargo build --release
 
-      - name: Package Windows ZIP
+      - name: Package Windows Artifacts
         shell: pwsh
         run: |
+          Copy-Item target/release/open-cleaner.exe open-cleaner-x86_64-pc-windows-msvc.exe
           Compress-Archive -Path target/release/open-cleaner.exe -DestinationPath open-cleaner-x86_64-pc-windows-msvc.zip
 
       - name: Upload Release Asset
@@ -32,6 +33,7 @@ jobs:
         with:
           files: |
             open-cleaner-x86_64-pc-windows-msvc.zip
+            open-cleaner-x86_64-pc-windows-msvc.exe
             target/release/open-cleaner.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

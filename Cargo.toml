@@ -1,6 +1,6 @@
 [package]
 name = "open-cleaner"
-version = "0.2.2"
+version = "0.2.3"
 edition = "2024"
 repository = "https://github.com/shafo3i/open-cleaner"
 
@@ -14,7 +14,7 @@ egui_extras = { version = "0.31", default-features = false }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
 semver = "1"
-self_update = "0.41"
+self_update = { version = "0.41", features = ["archive-zip", "compression-zip-deflate"] }
 ureq = "2.12"
 winreg = "0.56.0"
 
